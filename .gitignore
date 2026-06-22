@@ -1,0 +1,27 @@
+# Build directories
+qt_gui/build/
+qt_gui/build_ninja/
+qt_gui/build_ninja2/
+qt_gui/build_manual/
+
+# Compiled outputs
+*.exe
+*.dll
+*.o
+*.obj
+*.pdb
+*.ilk
+*.db
+
+# Qt deployment/runtime folders generated during local builds
+qt_gui/study_assistant/platforms/
+qt_gui/study_assistant/tls/
+
+# Local editor and tool caches
+.qtc_clangd/
+.vs/
+*.pro.user
+qt_gui/.qtcreator/
+
+# Local generated deliverables
+deliverables/

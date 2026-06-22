@@ -1,8 +1,8 @@
-# Build directories
-qt_gui/build/
-qt_gui/build_ninja/
-qt_gui/build_ninja2/
-qt_gui/build_manual/
+﻿# Build directories
+Qt图形界面/build/
+Qt图形界面/build_ninja/
+Qt图形界面/build_ninja2/
+Qt图形界面/build_manual/
 
 # Compiled outputs
 *.exe
@@ -14,14 +14,14 @@ qt_gui/build_manual/
 *.db
 
 # Qt deployment/runtime folders generated during local builds
-qt_gui/study_assistant/platforms/
-qt_gui/study_assistant/tls/
+Qt图形界面/学习助手/platforms/
+Qt图形界面/学习助手/tls/
 
 # Local editor and tool caches
 .qtc_clangd/
 .vs/
 *.pro.user
-qt_gui/.qtcreator/
+Qt图形界面/.qtcreator/
 
 # Local generated deliverables
 deliverables/

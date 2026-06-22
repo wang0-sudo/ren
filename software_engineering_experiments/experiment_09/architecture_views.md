@@ -1,0 +1,268 @@
+# 人才招聘系统架构视图
+
+## 1. 上下文视图
+
+```mermaid
+flowchart LR
+    Personal[个人用户]
+    Enterprise[企业用户]
+    Admin[管理员]
+    System((人才招聘系统))
+    File[(recruitment_data.txt)]
+
+    Personal -->|注册/登录/简历/申请/留言| System
+    System -->|岗位列表/申请结果/留言状态| Personal
+
+    Enterprise -->|注册/登录/企业资料/岗位/留言| System
+    System -->|人才列表/岗位状态/留言状态| Enterprise
+
+    Admin -->|审核/回复/删除/改密| System
+    System -->|待审列表/留言列表| Admin
+
+    System <--> File
+```
+
+说明：系统边界内包含 GUI、业务服务和本地数据文件读写逻辑。三类用户只通过桌面界面访问系统。
+
+## 2. 逻辑视图
+
+```mermaid
+classDiagram
+    class LoginWindow {
+        -shared_ptr~RecruitmentService~ service_
+        -QComboBox* roleComboBox_
+        -QLineEdit* usernameEdit_
+        -QLineEdit* passwordEdit_
+        +handleLogin()
+        +handlePersonalRegister()
+        +handleEnterpriseRegister()
+    }
+
+    class DashboardWindow {
+        -shared_ptr~RecruitmentService~ service_
+        -UserRole role_
+        -int currentUserId_
+        +refreshData()
+        +handlePersonalApplyPosition()
+        +handleEnterpriseAddPosition()
+        +handleAdminApprovePersonal()
+        +handleAdminReplyMessage()
+    }
+
+    class RecruitmentService {
+        +loadOrSeed()
+        +registerPersonalUser()
+        +registerEnterpriseUser()
+        +loginPersonal()
+        +loginEnterprise()
+        +loginAdmin()
+        +applyForPosition()
+        +withdrawApplication()
+        +addPosition()
+        +reviewPersonalUser()
+        +replyMessage()
+        +save()
+    }
+
+    class PersonalUser
+    class EnterpriseUser
+    class Position
+    class Message
+    class Resume
+
+    LoginWindow --> RecruitmentService
+    DashboardWindow --> RecruitmentService
+    RecruitmentService --> PersonalUser
+    RecruitmentService --> EnterpriseUser
+    RecruitmentService --> Position
+    RecruitmentService --> Message
+    PersonalUser *-- Resume
+```
+
+## 3. 组件视图
+
+```mermaid
+flowchart TB
+    subgraph Presentation[表示层]
+        Main[main.cpp]
+        Login[LoginWindow]
+        Dashboard[DashboardWindow]
+    end
+
+    subgraph Business[业务层]
+        Service[RecruitmentService]
+        Models[PersonalUser / EnterpriseUser / Position / Message]
+    end
+
+    subgraph Storage[数据层]
+        DataFile[(recruitment_data.txt)]
+    end
+
+    Main --> Login
+    Login --> Dashboard
+    Login --> Service
+    Dashboard --> Service
+    Service --> Models
+    Service <--> DataFile
+```
+
+组件设计原则：
+
+1. 表示层依赖业务层，业务层不依赖具体窗口类。
+2. 数据文件由业务层统一访问。
+3. 领域对象使用结构体承载数据，行为集中在服务类。
+
+## 4. 运行视图
+
+### 4.1 启动和登录序列
+
+```mermaid
+sequenceDiagram
+    participant Main as main.cpp
+    participant Service as RecruitmentService
+    participant Login as LoginWindow
+    participant Dashboard as DashboardWindow
+
+    Main->>Service: create shared service
+    Main->>Service: loadOrSeed()
+    Main->>Login: create LoginWindow(service)
+    Login->>Service: loginPersonal/loginEnterprise/loginAdmin
+    Service-->>Login: user pointer or login result
+    Login->>Dashboard: create DashboardWindow(service, role, userId)
+    Dashboard->>Service: query role data
+    Service-->>Dashboard: users/positions/messages
+```
+
+### 4.2 个人申请岗位序列
+
+```mermaid
+sequenceDiagram
+    participant User as 个人用户
+    participant Dashboard as DashboardWindow
+    participant Service as RecruitmentService
+    participant File as recruitment_data.txt
+
+    User->>Dashboard: 选择岗位并点击申请
+    Dashboard->>Service: applyForPosition(personalId, positionId, error)
+    Service->>Service: check personal exists and Approved
+    Service->>Service: check position visible
+    Service->>Service: check not duplicate
+    Service->>File: save()
+    File-->>Service: write result
+    Service-->>Dashboard: true/false + error
+    Dashboard->>Dashboard: refreshData()
+```
+
+### 4.3 管理员审核序列
+
+```mermaid
+sequenceDiagram
+    participant Admin as 管理员
+    participant Dashboard as DashboardWindow
+    participant Service as RecruitmentService
+    participant File as recruitment_data.txt
+
+    Admin->>Dashboard: 选择待审核用户并点击通过/驳回
+    Dashboard->>Service: reviewPersonalUser(userId, status, error)
+    Service->>Service: findPersonalById()
+    Service->>Service: set status
+    Service->>File: save()
+    Service-->>Dashboard: true/false + error
+    Dashboard->>Dashboard: refreshData()
+```
+
+## 5. 数据视图
+
+```mermaid
+erDiagram
+    PERSONAL_USER ||--|| RESUME : owns
+    ENTERPRISE_USER ||--o{ POSITION : publishes
+    PERSONAL_USER }o--o{ POSITION : applies
+    PERSONAL_USER ||--o{ MESSAGE : leaves
+    ENTERPRISE_USER ||--o{ MESSAGE : leaves
+
+    PERSONAL_USER {
+        int id
+        string username
+        string password
+        string name
+        string status
+    }
+
+    RESUME {
+        string education
+        string experience
+        string skills
+        string self_introduction
+    }
+
+    ENTERPRISE_USER {
+        int id
+        string username
+        string password
+        string company_name
+        string status
+    }
+
+    POSITION {
+        int id
+        int enterprise_id
+        string title
+        bool active
+    }
+
+    MESSAGE {
+        int id
+        string sender_type
+        string sender_name
+        string content
+        bool handled
+        string reply
+    }
+```
+
+## 6. 状态视图
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: register
+    Pending --> Approved: admin approve
+    Pending --> Rejected: admin reject
+    Approved --> Approved: business operations
+    Rejected --> Rejected: view status
+```
+
+该状态视图适用于个人用户和企业用户的审核生命周期。差异在于：个人用户通过后可申请岗位，企业用户通过后可发布岗位。
+
+## 7. 部署视图
+
+```mermaid
+flowchart TB
+    subgraph Dev[开发环境]
+        Source[qt_gui source files]
+        CMake[CMakeLists.txt / build scripts]
+    end
+
+    subgraph Runtime[Windows 运行环境]
+        App[recruitment_qt_gui.exe]
+        QtRuntime[Qt Widgets Runtime]
+        PlatformPlugin[qwindows.dll]
+        Data[(recruitment_data.txt)]
+    end
+
+    Source --> CMake
+    CMake --> App
+    App --> QtRuntime
+    App --> PlatformPlugin
+    App <--> Data
+```
+
+## 8. 视图一致性规则
+
+| 规则 | 说明 |
+|---|---|
+| CR-01 | 逻辑视图中的公开业务操作必须能在 `RecruitmentService` 中找到对应方法。 |
+| CR-02 | 组件视图中的表示层不得直接读写 `recruitment_data.txt`。 |
+| CR-03 | 运行视图中的状态检查应映射到服务层的前置条件。 |
+| CR-04 | 数据视图中的对象字段应与 `recruitment_service.h` 保持一致。 |
+| CR-05 | 部署视图中的运行文件应与 `qt_gui/README.md` 中说明一致。 |

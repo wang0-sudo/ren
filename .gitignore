@@ -13,10 +13,6 @@ Qt图形界面/build_manual/
 *.ilk
 *.db
 
-# Qt deployment/runtime folders generated during local builds
-Qt图形界面/学习助手/platforms/
-Qt图形界面/学习助手/tls/
-
 # Local editor and tool caches
 .qtc_clangd/
 .vs/
